@@ -120,11 +120,12 @@ function context(terminal) {
   };
 }
 
-// A comment box: Cmd+Enter (Ctrl+Enter off macOS) saves, Enter adds a line.
+// A comment box: Cmd+Enter (Ctrl+Enter off macOS) saves. The Textarea adds the line for Enter
+// itself and still reports it as a submit, so a newline needs nothing from us.
 function commentState(value, placeholder, onSave) {
   const s = TextareaState.new({ value, placeholder });
   s.set_auto_grow(1, 6);
-  s.on("submit", (e, cx) => { if (submitAction(e) === "save") onSave(cx); else s.replace("\n"); });
+  s.on("submit", (e, cx) => { if (submitAction(e) === "save") onSave(cx); });
   return s;
 }
 
