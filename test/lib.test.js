@@ -1,7 +1,7 @@
 // node test/lib.test.js
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseJsonl, toJsonl, captureOrder, forTerminal, trimQuote, formatCompact, pendingSelection, PENDING_MAX_AGE_MS } from "../mods/ez-annotate/lib.js";
+import { parseJsonl, toJsonl, captureOrder, forTerminal, trimQuote, formatCompact, pendingSelection, PENDING_MAX_AGE_MS, typedChar, submitAction, saveHint } from "../mods/ez-annotate/lib.js";
 
 const a = (id, sel, comment, createdAt, ctx = {}, kind) => ({ selectedText: sel, capturedAt: createdAt, context: ctx, id, comment, createdAt, ...(kind ? { kind } : {}) });
 const one = a("1", "  use the reply review.\n", "Is this the TUI?", "2026-10-30T06:00:57.177Z", { terminal_id: "t1" });
@@ -66,5 +66,31 @@ assert.equal(pendingSelection(5000, 5001 + PENDING_MAX_AGE_MS), false);
 assert.equal(pendingSelection(null, 5000), false);
 assert.equal(pendingSelection(undefined, 5000), false);
 assert.equal(pendingSelection(9000, 5000), false);
+
+// The popup bar: any key that types a character starts a comment with it. Looks good and delete
+// are clicks only, so a comment can start with any letter.
+const key = (k, char, mods = {}) => ({ key: k, key_char: char, modifiers: { shift: false, control: false, alt: false, platform: false, ...mods } });
+assert.equal(typedChar(key("a", "a")), "a");
+assert.equal(typedChar(key("c", "c")), "c");
+assert.equal(typedChar(key("d", "d")), "d");
+assert.equal(typedChar(key("a", "A", { shift: true })), "A");
+assert.equal(typedChar(key("1", "!", { shift: true })), "!");
+assert.equal(typedChar(key("space", " ")), " ");
+assert.equal(typedChar(key("a", "a", { platform: true })), null);
+assert.equal(typedChar(key("a", "a", { control: true })), null);
+assert.equal(typedChar(key("2", "@", { alt: true })), "@"); // Option types characters on many Mac layouts
+assert.equal(typedChar(key("enter", undefined)), null);
+assert.equal(typedChar(key("left", undefined)), null);
+assert.equal(typedChar(key("tab", "\t")), null);
+
+// The comment box: Cmd+Enter (Ctrl+Enter off macOS, GPUI's "secondary") saves; Enter adds a line.
+assert.equal(submitAction({ secondary: true }), "save");
+assert.equal(submitAction({ secondary: true, shift: true }), "save");
+assert.equal(submitAction({}), "newline");
+assert.equal(submitAction({ shift: true }), "newline");
+assert.equal(submitAction(undefined), "newline");
+assert.equal(saveHint("macos"), "Cmd+Enter save · Enter new line · Esc cancel");
+assert.equal(saveHint("linux"), "Ctrl+Enter save · Enter new line · Esc cancel");
+assert.equal(saveHint("windows"), "Ctrl+Enter save · Enter new line · Esc cancel");
 
 console.log("ok");
