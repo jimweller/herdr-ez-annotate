@@ -52,13 +52,18 @@ export function formatCompact(annotations) {
 }
 
 // The key goes to the top bar (`tabs-annotate.selection`), which is always shown. It opens the
-// Annotate section and stamps a pending request; the panel's loop takes it up within one poll,
+// Annotate section and leaves a pending request. The panel's loop takes it up within one poll,
 // even when the panel was hidden or had never been shown. A request older than this is dropped,
 // so a key pressed while the panel couldn't start never pops later.
+// A bare time asks the panel to copy the selection. With the section shut, the key copies the
+// selection before it opens the panel, because the new panel's copy came back empty, and leaves
+// { at, text, terminal }. Returns null for no request, else { text, terminal }.
 export const PENDING_MAX_AGE_MS = 3000;
-export function pendingSelection(stamp, now, maxAge = PENDING_MAX_AGE_MS) {
-  const at = Number(stamp);
-  return Boolean(stamp) && at <= now && now - at <= maxAge;
+export function pendingRequest(value, now, maxAge = PENDING_MAX_AGE_MS) {
+  const req = value && typeof value === "object" ? value : { at: value };
+  const at = Number(req.at);
+  if (!req.at || !(at <= now && now - at <= maxAge)) return null;
+  return { text: typeof req.text === "string" ? req.text : null, terminal: req.terminal ?? null };
 }
 
 // The comment box, as in herdr-annotate's editor: Cmd+Enter (Ctrl+Enter off macOS, which GPUI
@@ -76,9 +81,11 @@ export function saveHint(platform) {
 export const CLIP_MAX_AGE_MS = 30000;
 
 // The next clipboard state. `watching`: this window is active and a terminal has focus.
-// The first read (no `prev`) is the baseline and never fresh.
+// The first read (no `prev`) is the baseline and never fresh. A copy's sentinel is this mod's
+// own write and leaves the state as it was.
+export const SENTINEL = "ez-annotate:";
 export function trackClip(prev, text, watching, now) {
-  if (prev && prev.text === text) return prev;
+  if (prev && (prev.text === text || text.startsWith(SENTINEL))) return prev;
   return { text, at: now, fresh: Boolean(prev && watching && text.trim()) };
 }
 

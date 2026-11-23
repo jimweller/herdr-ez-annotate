@@ -14,14 +14,14 @@ import {
 } from "herdr";
 import * as fs from "fs/promises";
 import { randomUUID } from "crypto";
-import { parseJsonl, toJsonl, forTerminal, trimQuote, formatCompact, KIND_TEXT, pendingSelection, submitAction, saveHint, trackClip, clipFallback } from "./lib.js";
+import { parseJsonl, toJsonl, forTerminal, trimQuote, formatCompact, KIND_TEXT, pendingRequest, submitAction, saveHint, trackClip, clipFallback, SENTINEL } from "./lib.js";
 
 const MOD = "ez-annotate";
 const ACTIVE = "annotations.jsonl";
 const ARCHIVE = "archives.jsonl";
 const REV = `${MOD}.rev`; // bumped after the popup saves, so the panel reloads
 const POPUP = `${MOD}.popup`; // when the popup opened; null once it closed
-const PENDING = `${MOD}.pending`; // when the annotate key asked for the selection (tabs-annotate sets it)
+const PENDING = `${MOD}.pending`; // the annotate key's request, see pendingRequest (tabs-annotate sets it)
 const POLL_MS = 250;
 const dir = () => `${appHome()}/state/${MOD}`;
 const now = () => new Date().toISOString();
@@ -92,7 +92,7 @@ setsid -f sh -c 'exec 9>"$F.lock"; flock -n 9 || exit 0; exec wl-paste --primary
 // ponytail: restores text only; an image on the clipboard is lost. Fix if a selection API lands.
 async function copySelection(cx) {
   const before = cx.read_from_clipboard();
-  const mark = `ez-annotate:${randomUUID()}`;
+  const mark = `${SENTINEL}${randomUUID()}`;
   cx.write_to_clipboard(mark);
   run("terminal.copy");
   let text = mark;
@@ -203,9 +203,11 @@ export default class EzAnnotate extends View {
         if (shared(REV) !== this.rev) { this.rev = shared(REV); this.reload(cx); }
         const f = focused();
         if (f?.terminal && f.terminal !== this.term) { this.term = f.terminal; this.cancel(); cx.notify(); }
-        if (pendingSelection(shared(PENDING), Date.now()) && sectionOpen()) {
+        const req = pendingRequest(shared(PENDING), Date.now());
+        if (req && sectionOpen()) {
           setShared(PENDING, null);
-          await this.annotateSelection(cx);
+          if (req.text?.trim()) this.popup(req.text, req.terminal ?? focused()?.terminal);
+          else await this.annotateSelection(cx);
         }
         const popupOpen = Date.now() - (Number(shared(POPUP)) || 0) < 300000;
         const bar = popupOpen && shared(POPUP) === this.bar?.opened; // ours, not the comment box

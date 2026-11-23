@@ -40,13 +40,16 @@ delete, and sends them to that pane's coding agent as one compact message (or co
   annotation stores the quote and the terminal.
 - The annotate key (`ctrl-shift-a` / `cmd-shift-a`) is bound to `tabs-annotate.selection`,
   because a mod's command reaches shown copies only and the top bar is always shown. The
-  `tabs-annotate` fork shows the Annotate section and sets the shared key `ez-annotate.pending`
-  to the time. The panel's loop takes a request up to 3 s old (`pendingSelection` in `lib.js`),
-  clears it, and opens the same popup as the `selection` command (`ez-annotate.selection`, kept
-  for keys bound by earlier versions, which the installer moves to the new command). That loop
-  runs while the panel is hidden too, and a panel shown for the first time starts it. Both
-  write a sentinel to the clipboard, run `terminal.copy`, wait up to 500 ms for the clipboard to
-  change, then restore the old text.
+  `tabs-annotate` fork shows the Annotate section and sets the shared key `ez-annotate.pending`.
+  With the section open, the key sets it to the time. With the section shut, the fork copies the
+  selection first and sets `{ at, text, terminal }`, because a panel that starts when the
+  section opens copied nothing on the first press. The panel's
+  loop takes a request up to 3 s old (`pendingRequest` in `lib.js`), clears it, and opens the
+  popup on the passed text, or copies the selection itself as the `selection` command
+  (`ez-annotate.selection`, kept for keys bound by earlier versions, which the installer moves to
+  the new command) does. That loop runs while the panel is hidden too, and a panel shown for the
+  first time starts it. Each copy writes a sentinel to the clipboard, runs `terminal.copy`, waits
+  up to 500 ms for the clipboard to change, then restores the old text.
 - With no Herdr selection on macOS and Windows, the key uses clipboard text that changed in the
   last 30 s while the window was active, a terminal had focus and no popup was open (`trackClip`,
   `clipFallback` in `lib.js`). Programs that take the mouse, such as Claude Code's fullscreen

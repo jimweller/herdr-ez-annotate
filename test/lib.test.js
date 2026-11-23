@@ -1,7 +1,7 @@
 // node test/lib.test.js
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseJsonl, toJsonl, captureOrder, forTerminal, trimQuote, formatCompact, pendingSelection, PENDING_MAX_AGE_MS, submitAction, saveHint, trackClip, clipFallback, CLIP_MAX_AGE_MS } from "../mods/ez-annotate/lib.js";
+import { parseJsonl, toJsonl, captureOrder, forTerminal, trimQuote, formatCompact, pendingRequest, PENDING_MAX_AGE_MS, submitAction, saveHint, trackClip, clipFallback, CLIP_MAX_AGE_MS } from "../mods/ez-annotate/lib.js";
 
 const a = (id, sel, comment, createdAt, ctx = {}, kind) => ({ selectedText: sel, capturedAt: createdAt, context: ctx, id, comment, createdAt, ...(kind ? { kind } : {}) });
 const one = a("1", "  use the reply review.\n", "Is this the TUI?", "2026-10-30T06:00:57.177Z", { terminal_id: "t1" });
@@ -59,13 +59,19 @@ try {
   formatCompact(sets.flatMap((s) => s.annotations));
 } catch (e) { if (e.code !== "ENOENT") throw e; }
 
-// The key opens the Annotate section and leaves a pending request (its time) for the panel.
-assert.equal(pendingSelection(5000, 5000), true);
-assert.equal(pendingSelection(5000, 5000 + PENDING_MAX_AGE_MS), true);
-assert.equal(pendingSelection(5000, 5001 + PENDING_MAX_AGE_MS), false);
-assert.equal(pendingSelection(null, 5000), false);
-assert.equal(pendingSelection(undefined, 5000), false);
-assert.equal(pendingSelection(9000, 5000), false);
+// The key opens the Annotate section and leaves a pending request for the panel. A bare time
+// asks the panel to copy the selection itself. With the section shut, the key copies first and
+// passes the text, because opening the panel changes the layout before the panel can copy.
+assert.deepEqual(pendingRequest(5000, 5000), { text: null, terminal: null });
+assert.deepEqual(pendingRequest(5000, 5000 + PENDING_MAX_AGE_MS), { text: null, terminal: null });
+assert.equal(pendingRequest(5000, 5001 + PENDING_MAX_AGE_MS), null);
+assert.equal(pendingRequest(null, 5000), null);
+assert.equal(pendingRequest(undefined, 5000), null);
+assert.equal(pendingRequest(9000, 5000), null);
+assert.deepEqual(pendingRequest({ at: 5000, text: "npm test", terminal: "t3" }, 5100), { text: "npm test", terminal: "t3" });
+assert.deepEqual(pendingRequest({ at: 5000, text: "", terminal: "t3" }, 5100), { text: "", terminal: "t3" });
+assert.equal(pendingRequest({ at: 5000, text: "npm test" }, 5001 + PENDING_MAX_AGE_MS), null);
+assert.equal(pendingRequest({ text: "npm test" }, 5000), null);
 
 
 // The comment box: Cmd+Enter (Ctrl+Enter off macOS, GPUI's "secondary") saves; Enter adds a line.
@@ -87,6 +93,10 @@ const dragged = trackClip(base, "dragged in claude", true, 2000);
 assert.deepEqual(dragged, { text: "dragged in claude", at: 2000, fresh: true });
 assert.equal(trackClip(base, "copied in a browser", false, 2000).fresh, false);
 assert.equal(trackClip(base, "   ", true, 2000).fresh, false);
+// A copy's sentinel (ez-annotate:...) is this mod's own write, from the panel or the top bar.
+// Skipping it keeps it out of the fallback, and the restored text then matches the baseline.
+assert.equal(trackClip(base, "ez-annotate:1795450101572:0.05", true, 2000), base);
+assert.equal(trackClip(trackClip(base, "ez-annotate:abc", true, 2000), "old", true, 2100), base);
 // Fresh text is used until it is older than CLIP_MAX_AGE_MS.
 assert.equal(clipFallback(dragged, 2000 + CLIP_MAX_AGE_MS), "dragged in claude");
 assert.equal(clipFallback(dragged, 2001 + CLIP_MAX_AGE_MS), "");

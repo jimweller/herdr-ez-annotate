@@ -79,15 +79,37 @@ function togglePanel(id) {
 function showPanel(id) { run("layout.select", { stack: "panel-body", child: id }); run("layout.show", { id: "panel" }); }
 
 // fork: "tabs-annotate.selection" (the annotate key) shows the Annotate section and leaves the
-// request for its panel, which may not have started yet (see pendingSelection in ez-annotate).
-import { setShared as ezSetShared } from "herdr";
-function annotateSelection() { showPanel("annotate"); ezSetShared("ez-annotate.pending", Date.now()); }
+// request for its panel, which may not have started yet (see pendingRequest in ez-annotate).
+// A panel that starts when the section opens copied nothing on the first press, so a shut
+// section gets the text copied here, before the layout changes.
+import { setShared as ezSetShared, focused as ezFocused } from "herdr";
+const ezSectionOpen = () => {
+  const root = layout(), panel = find(root, "panel");
+  return Boolean(panel && !panel.hidden && find(root, "panel-body")?.active === "annotate");
+};
+async function ezCopySelection(cx) {
+  const before = cx.read_from_clipboard();
+  const mark = `ez-annotate:${Date.now()}:${Math.random()}`;
+  cx.write_to_clipboard(mark);
+  run("terminal.copy");
+  let text = mark;
+  for (let i = 0; i < 10 && text === mark; i++) { await new Promise((r) => cx.timer.after(50, () => r())); text = cx.read_from_clipboard(); }
+  cx.write_to_clipboard(before ?? "");
+  return text === mark ? "" : text ?? "";
+}
+async function annotateSelection(cx) {
+  if (ezSectionOpen()) { ezSetShared("ez-annotate.pending", Date.now()); return; }
+  const terminal = ezFocused()?.terminal ?? null;
+  const text = terminal ? await ezCopySelection(cx) : "";
+  showPanel("annotate");
+  ezSetShared("ez-annotate.pending", { at: Date.now(), text, terminal });
+}
 
 export default class""")
     sub("  init() {", """  init(_props, cx) {
     // fork: keys.json "tabs-annotate.files" / ".changes" / ".annotate" toggle that section;
     // "tabs-annotate.selection" annotates the focused terminal's selection.
-    cx.spawn(async (cx) => { for (;;) { const c = await nextCommand(); if (c === "selection") annotateSelection(); else if (["files", "changes", "annotate"].includes(c)) togglePanel(c); cx.notify(); } });""")
+    cx.spawn(async (cx) => { for (;;) { const c = await nextCommand(); if (c === "selection") await annotateSelection(cx); else if (["files", "changes", "annotate"].includes(c)) togglePanel(c); cx.notify(); } });""")
     sub('const enabled = shared("workspace.panels") ?? ["files", "changes"];',
         'const enabled = [...(shared("workspace.panels") ?? ["files", "changes"]), "annotate"]; // fork: ez-annotate')
     changes = '      .when(enabled.includes("changes"), el => el.child(panelButton("changes", "Changes", "mods/changes/changes.svg")))\n'
