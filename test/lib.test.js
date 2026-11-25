@@ -103,4 +103,8 @@ assert.equal(clipFallback(dragged, 2001 + CLIP_MAX_AGE_MS), "");
 assert.equal(clipFallback(base, 1000), "");
 assert.equal(clipFallback(null, 1000), "");
 
+// install.py binds the send key next to the annotate key, on both modifier sets.
+const keys = readFileSync(new URL("../install.py", import.meta.url), "utf8").match(/^KEYS = \{([\s\S]*?)\}$/m)[1];
+for (const k of ["ctrl-shift-s", "cmd-shift-s"]) assert.match(keys, new RegExp(`"${k}": f"\\{MOD\\}\\.send"`));
+
 console.log("ok");

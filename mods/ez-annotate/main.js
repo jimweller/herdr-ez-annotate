@@ -231,10 +231,18 @@ export default class EzAnnotate extends View {
 
   // "ez-annotate.selection": pop the focused terminal's selection. The annotate key goes through
   // tabs-annotate instead (PENDING), which also works while this panel is closed.
+  // "send" sends the focused terminal's annotations, as the Send to agent button does. A command
+  // reaches only a shown panel, and the panel is shown while there are annotations to send.
   commands(cx) {
     cx.spawn(async (cx) => {
       for (;;) {
-        if (await nextCommand() === "selection") await this.annotateSelection(cx);
+        const command = await nextCommand();
+        if (command === "selection") await this.annotateSelection(cx);
+        else if (command === "send") {
+          const list = this.term ? forTerminal(this.all, this.term) : [];
+          if (list.length) this.send(list, cx);
+          else toast("Annotate", "No annotations to send for this terminal.");
+        }
       }
     });
   }

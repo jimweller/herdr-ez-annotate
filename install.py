@@ -14,7 +14,8 @@ REPO = "chandrasekharan98/herdr-ez-annotate"
 MOD, TABS, LAYOUT = "ez-annotate", "tabs-annotate", "annotate"
 HOME = Path(os.environ.get("EZ_ANNOTATE_HERDR_HOME") or Path.home() / ".config" / "herdr-app")
 # The key goes to the top bar, which is always shown, so it works with the panel closed.
-KEYS = {"ctrl-shift-a": f"{TABS}.selection", "cmd-shift-a": f"{TABS}.selection"}
+KEYS = {"ctrl-shift-a": f"{TABS}.selection", "cmd-shift-a": f"{TABS}.selection",
+        "ctrl-shift-s": f"{MOD}.send", "cmd-shift-s": f"{MOD}.send"}
 OLD_KEY = f"{MOD}.selection"  # what earlier versions bound
 BLOCK = {"id": "annotate", "type": "block", "content": {"mod": MOD}}
 

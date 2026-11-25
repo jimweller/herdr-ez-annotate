@@ -56,6 +56,9 @@ delete, and sends them to that pane's coding agent as one compact message (or co
   mode, copy their own selection on release, so a plain drag still annotates. That text is used
   once. The panel loop reads the clipboard every poll outside Linux, skips it while the key's
   own sentinel is on the clipboard, and marks Copy all's own write as not fresh.
+- The `send` command (`ez-annotate.send`, `ctrl-shift-s` / `cmd-shift-s`) sends the focused
+  terminal's annotations the way the **Send to agent** button does. A mod's command reaches shown
+  copies only, so the key works while the Annotate section is shown.
 - No popup when the Annotate section is closed or not the shown section, the window isn't active, no terminal has focus, the
   selection is blank or unchanged, or the comment box is open. A new selection while the bar
   is open replaces the bar; one made while the section was shut pops when it opens. Coming
